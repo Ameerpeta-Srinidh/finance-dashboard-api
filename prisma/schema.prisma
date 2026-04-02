@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  password     String
+  name         String
+  role         String        @default("VIEWER")
+  status       String        @default("ACTIVE")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  transactions Transaction[]
+  auditLogs    AuditLog[]
+}
+
+model Transaction {
+  id          String   @id @default(cuid())
+  amount      Float
+  type        String
+  category    String
+  date        DateTime
+  description String?
+  isDeleted   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([type, category, date])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  action     String
+  userId     String
+  resourceId String
+  details    String?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
