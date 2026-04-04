@@ -110,6 +110,14 @@ Validation is handled by Zod before data reaches the service layer. This keeps c
 
 SQLite keeps the project simple to set up and run locally without external dependencies. For a production finance system, I would switch to PostgreSQL and store currency values in minor units or use a proper decimal strategy.
 
+## Assumptions
+
+- All monetary values are stored as floating-point numbers. This is acceptable for a demo but would need a minor-unit or decimal strategy in production.
+- Registration is open and always assigns the `VIEWER` role. Only the first registration can bootstrap an `ADMIN` account when the database is empty.
+- The system does not implement refresh tokens. JWTs expire based on the `JWT_EXPIRES_IN` environment variable and must be re-obtained through login.
+- Soft-deleted transactions are excluded from all queries and analytics. There is no endpoint to restore them.
+- Audit logs are append-only. There is no endpoint to query or export them directly — they exist for backend traceability.
+
 ## Security
 
 - Passwords are hashed using bcrypt before storage
@@ -118,6 +126,25 @@ SQLite keeps the project simple to set up and run locally without external depen
 - Inactive users are blocked from login
 - Duplicate email registration is prevented
 - Self-demotion and self-deactivation are blocked for admins
+
+## Error Handling
+
+All responses follow a consistent JSON shape:
+
+```json
+// Success
+{ "success": true, "data": { ... } }
+
+// Error
+{ "success": false, "message": "...", "errors": { ... } }
+```
+
+Errors are handled through a centralized middleware that catches:
+
+- **Zod validation errors** — returns 400 with field-level details
+- **Application errors** — custom `AppError` class with appropriate status codes
+- **Prisma errors** — database constraint violations return 400 with error metadata
+- **Unhandled errors** — caught as 500 without leaking internals
 
 ## Dashboard Logic
 
@@ -199,12 +226,25 @@ Defined in `.env.example`:
 - `PATCH /api/transactions/:id` — admin only
 - `DELETE /api/transactions/:id` — admin only
 
+The `GET /api/transactions` endpoint supports filtering and pagination through query parameters:
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `type` | `INCOME` or `EXPENSE` | Filter by transaction type |
+| `category` | string | Partial match on category name |
+| `startDate` | ISO date | Records on or after this date |
+| `endDate` | ISO date | Records on or before this date |
+| `page` | integer | Page number, defaults to 1 |
+| `limit` | integer | Records per page, defaults to 10, max 100 |
+
+Paginated responses include a `pagination` object with `total`, `page`, and `totalPages`.
+
 ### Dashboard (Analyst and Admin)
 
 - `GET /api/dashboard/summary`
 - `GET /api/dashboard/category-breakdown`
-- `GET /api/dashboard/monthly-trends`
-- `GET /api/dashboard/recent-activity`
+- `GET /api/dashboard/monthly-trends?year=2026`
+- `GET /api/dashboard/recent-activity?limit=10`
 
 ## Future Improvements
 
