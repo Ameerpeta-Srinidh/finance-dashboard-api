@@ -112,7 +112,7 @@ export const create = async (payload: CreateTransactionInput, userId: string) =>
   return transaction;
 };
 
-export const update = async (id: string, payload: UpdateTransactionInput) => {
+export const update = async (id: string, payload: UpdateTransactionInput, userId: string) => {
   await getOne(id);
 
   const updatedTransaction = await prisma.transaction.update({
@@ -121,12 +121,12 @@ export const update = async (id: string, payload: UpdateTransactionInput) => {
     select: transactionSelect,
   });
 
-  await logAction(updatedTransaction.user.id, "UPDATE", id, payload);
+  await logAction(userId, "UPDATE", id, payload);
 
   return updatedTransaction;
 };
 
-export const remove = async (id: string) => {
+export const remove = async (id: string, userId: string) => {
   await getOne(id);
 
   const deletedTransaction = await prisma.transaction.update({
@@ -135,7 +135,7 @@ export const remove = async (id: string) => {
     select: transactionSelect,
   });
 
-  await logAction(deletedTransaction.user.id, "DELETE", id, { isDeleted: true });
+  await logAction(userId, "DELETE", id, { isDeleted: true });
 
   return deletedTransaction;
 };

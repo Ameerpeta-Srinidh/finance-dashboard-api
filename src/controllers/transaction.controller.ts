@@ -28,13 +28,13 @@ export const create = async (req: AuthRequest, res: Response) => {
   sendSuccess(res, 201, transaction);
 };
 
-export const update = async (req: Request, res: Response) => {
+export const update = async (req: AuthRequest, res: Response) => {
   const payload = updateTransactionSchema.parse(req.body);
-  const transaction = await transactionService.update(getRouteId(req.params.id), payload);
+  const transaction = await transactionService.update(getRouteId(req.params.id), payload, req.user!.userId);
   sendSuccess(res, 200, transaction);
 };
 
-export const remove = async (req: Request, res: Response) => {
-  const transaction = await transactionService.remove(getRouteId(req.params.id));
+export const remove = async (req: AuthRequest, res: Response) => {
+  const transaction = await transactionService.remove(getRouteId(req.params.id), req.user!.userId);
   sendSuccess(res, 200, transaction);
 };
