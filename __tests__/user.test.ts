@@ -128,4 +128,48 @@ describe("User Endpoints", () => {
     expect(res.status).toBe(200);
     expect(res.body.data.status).toBe("INACTIVE");
   });
+
+  it("should prevent an admin from changing their own role", async () => {
+    const adminToken = await registerAndLogin({
+      name: "Admin User",
+      email: "admin@test.com",
+      password: "password123",
+      role: "ADMIN",
+    });
+
+    const usersRes = await request(app)
+      .get("/api/users")
+      .set("Authorization", `Bearer ${adminToken}`);
+
+    const admin = usersRes.body.data.find((user: any) => user.email === "admin@test.com");
+
+    const res = await request(app)
+      .patch(`/api/users/${admin.id}/role`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ role: "VIEWER" });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("should prevent an admin from deactivating themselves", async () => {
+    const adminToken = await registerAndLogin({
+      name: "Admin User",
+      email: "admin@test.com",
+      password: "password123",
+      role: "ADMIN",
+    });
+
+    const usersRes = await request(app)
+      .get("/api/users")
+      .set("Authorization", `Bearer ${adminToken}`);
+
+    const admin = usersRes.body.data.find((user: any) => user.email === "admin@test.com");
+
+    const res = await request(app)
+      .patch(`/api/users/${admin.id}/status`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ status: "INACTIVE" });
+
+    expect(res.status).toBe(400);
+  });
 });

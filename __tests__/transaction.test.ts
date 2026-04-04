@@ -171,4 +171,70 @@ describe("Transaction Endpoints", () => {
     expect(res.body.data).toHaveLength(1);
     expect(res.body.data[0].category).toBe("Groceries");
   });
+
+  it("should filter transactions by type", async () => {
+    await request(app)
+      .post("/api/transactions")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({
+        amount: 500,
+        type: "INCOME",
+        category: "Salary",
+        date: new Date().toISOString(),
+      });
+
+    await request(app)
+      .post("/api/transactions")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({
+        amount: 200,
+        type: "EXPENSE",
+        category: "Groceries",
+        date: new Date().toISOString(),
+      });
+
+    const res = await request(app)
+      .get("/api/transactions")
+      .query({ type: "EXPENSE" })
+      .set("Authorization", `Bearer ${adminToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].type).toBe("EXPENSE");
+  });
+
+  it("should create audit log entries for transaction changes", async () => {
+    const { prisma } = await import("../src/utils/prisma");
+
+    const createRes = await request(app)
+      .post("/api/transactions")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({
+        amount: 100,
+        type: "EXPENSE",
+        category: "Supplies",
+        date: new Date().toISOString(),
+      });
+
+    const txId = createRes.body.data.id;
+
+    await request(app)
+      .patch(`/api/transactions/${txId}`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ amount: 150 });
+
+    await request(app)
+      .delete(`/api/transactions/${txId}`)
+      .set("Authorization", `Bearer ${adminToken}`);
+
+    const logs = await prisma.auditLog.findMany({
+      where: { resourceId: txId },
+      orderBy: { createdAt: "asc" },
+    });
+
+    expect(logs).toHaveLength(3);
+    expect(logs[0].action).toBe("CREATE");
+    expect(logs[1].action).toBe("UPDATE");
+    expect(logs[2].action).toBe("DELETE");
+  });
 });
