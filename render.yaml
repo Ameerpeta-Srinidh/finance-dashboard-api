@@ -1,0 +1,15 @@
+services:
+  - type: web
+    plan: free
+    name: finance-dashboard-api
+    runtime: node
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npx prisma migrate deploy && npm run db:seed && node dist/app.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        value: file:./dev.db
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
